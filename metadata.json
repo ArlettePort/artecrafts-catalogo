@@ -1,0 +1,6 @@
+{
+  "name": "ArteCrafts - Catálogo Artesanal",
+  "description": "Catálogo de productos artesanales modernos y elegantes de ArteCrafts con navegación optimizada para móvil, tonos pastel rosados y detalles delicados.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
