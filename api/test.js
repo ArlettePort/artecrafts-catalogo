@@ -1,3 +1,3 @@
-module.exports = (req, res) => {
-  res.json({ message: 'API test working', time: new Date() });
+export default async (req, res) => {
+  res.json({ status: 'ok', message: 'Handler working' });
 };
