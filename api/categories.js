@@ -1,33 +1,24 @@
-const { MongoClient } = require('mongodb');
+import { MongoClient, ObjectId } from 'mongodb';
 
 let cachedClient = null;
 
 async function connectDB() {
-  if (cachedClient) {
-    return cachedClient;
-  }
+  if (cachedClient) return cachedClient;
 
   const mongoUri = process.env.MONGODB_URI;
-  if (!mongoUri) {
-    throw new Error('MONGODB_URI not configured');
-  }
+  if (!mongoUri) throw new Error('MONGODB_URI not configured');
 
-  try {
-    const client = new MongoClient(mongoUri, {
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
-    });
+  const client = new MongoClient(mongoUri, {
+    maxPoolSize: 10,
+    serverSelectionTimeoutMS: 5000,
+  });
 
-    await client.connect();
-    cachedClient = client;
-    return client;
-  } catch (error) {
-    console.error('MongoDB Connection Error:', error);
-    throw error;
-  }
+  await client.connect();
+  cachedClient = client;
+  return client;
 }
 
-module.exports = async (req, res) => {
+export default async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -60,7 +51,6 @@ module.exports = async (req, res) => {
 
     if (req.method === 'PUT') {
       const { id } = req.query;
-      const { ObjectId } = require('mongodb');
       const result = await collection.findOneAndUpdate(
         { _id: new ObjectId(id) },
         { $set: { ...req.body, updatedAt: new Date() } },
@@ -71,7 +61,6 @@ module.exports = async (req, res) => {
 
     if (req.method === 'DELETE') {
       const { id } = req.query;
-      const { ObjectId } = require('mongodb');
       await collection.deleteOne({ _id: new ObjectId(id) });
       return res.status(200).json({ message: 'Category deleted' });
     }
