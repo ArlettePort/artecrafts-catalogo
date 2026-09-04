@@ -1,28 +1,5 @@
 import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI;
-
-let cachedConn = null;
-
-async function connectDB() {
-  if (cachedConn) return cachedConn;
-
-  if (!MONGODB_URI) {
-    throw new Error('MONGODB_URI not defined');
-  }
-
-  try {
-    const conn = await mongoose.connect(MONGODB_URI, {
-      bufferCommands: false,
-    });
-    cachedConn = conn;
-    return conn;
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    throw error;
-  }
-}
-
 const cartItemSchema = new mongoose.Schema({
   product: {
     id: String,
@@ -56,7 +33,7 @@ const orderSchema = new mongoose.Schema({
 const Order = mongoose.models.Order || mongoose.model('Order', orderSchema);
 
 function generateOrderNumber() {
-  return `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+  return `ORD-${Date.now()}-${Math.random().toString(36).slice(2, 11).toUpperCase()}`;
 }
 
 export default async function handler(req, res) {
@@ -70,29 +47,42 @@ export default async function handler(req, res) {
   }
 
   try {
-    await connectDB();
+    const mongoUri = process.env.MONGODB_URI;
+    if (!mongoUri) {
+      return res.status(500).json({ error: 'MONGODB_URI not configured' });
+    }
+
+    // Connect if not already connected
+    if (mongoose.connection.readyState === 0) {
+      await mongoose.connect(mongoUri, { bufferCommands: false });
+    }
 
     if (req.method === 'GET') {
       const orders = await Order.find().sort({ createdAt: -1 });
-      res.status(200).json(orders);
-    } else if (req.method === 'POST') {
+      return res.status(200).json(orders);
+    }
+    if (req.method === 'POST') {
       const orderData = {
         ...req.body,
         orderNumber: generateOrderNumber(),
       };
       const order = await Order.create(orderData);
-      res.status(201).json(order);
-    } else if (req.method === 'PUT') {
+      return res.status(201).json(order);
+    }
+    if (req.method === 'PUT') {
       const { id } = req.query;
       const order = await Order.findByIdAndUpdate(id, req.body, { new: true });
-      res.status(200).json(order);
-    } else if (req.method === 'DELETE') {
+      return res.status(200).json(order);
+    }
+    if (req.method === 'DELETE') {
       const { id } = req.query;
       await Order.findByIdAndDelete(id);
-      res.status(200).json({ message: 'Order deleted' });
+      return res.status(200).json({ message: 'Order deleted' });
     }
+
+    return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
-    console.error('Orders API Error:', error);
-    res.status(500).json({ error: error.message, type: error.constructor.name });
+    console.error('Error:', error);
+    return res.status(500).json({ error: error.message });
   }
 }

@@ -1,28 +1,5 @@
 import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI;
-
-let cachedConn = null;
-
-async function connectDB() {
-  if (cachedConn) return cachedConn;
-
-  if (!MONGODB_URI) {
-    throw new Error('MONGODB_URI not defined');
-  }
-
-  try {
-    const conn = await mongoose.connect(MONGODB_URI, {
-      bufferCommands: false,
-    });
-    cachedConn = conn;
-    return conn;
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    throw error;
-  }
-}
-
 const productVariantSchema = new mongoose.Schema({
   id: String,
   name: String,
@@ -67,7 +44,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    await connectDB();
+    const mongoUri = process.env.MONGODB_URI;
+    if (!mongoUri) {
+      return res.status(500).json({ error: 'MONGODB_URI not configured' });
+    }
+
+    // Connect if not already connected
+    if (mongoose.connection.readyState === 0) {
+      await mongoose.connect(mongoUri, { bufferCommands: false });
+    }
 
     if (req.method === 'GET') {
       const { category, featured, status } = req.query;
@@ -84,21 +69,26 @@ export default async function handler(req, res) {
       }
 
       const products = await Product.find(query).sort({ createdAt: -1 });
-      res.status(200).json(products);
-    } else if (req.method === 'POST') {
+      return res.status(200).json(products);
+    }
+    if (req.method === 'POST') {
       const product = await Product.create(req.body);
-      res.status(201).json(product);
-    } else if (req.method === 'PUT') {
+      return res.status(201).json(product);
+    }
+    if (req.method === 'PUT') {
       const { id } = req.query;
       const product = await Product.findByIdAndUpdate(id, req.body, { new: true });
-      res.status(200).json(product);
-    } else if (req.method === 'DELETE') {
+      return res.status(200).json(product);
+    }
+    if (req.method === 'DELETE') {
       const { id } = req.query;
       await Product.findByIdAndDelete(id);
-      res.status(200).json({ message: 'Product deleted' });
+      return res.status(200).json({ message: 'Product deleted' });
     }
+
+    return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
-    console.error('Products API Error:', error);
-    res.status(500).json({ error: error.message, type: error.constructor.name });
+    console.error('Error:', error);
+    return res.status(500).json({ error: error.message });
   }
 }
