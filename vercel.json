@@ -5,10 +5,5 @@
     "api/**/*.ts": {
       "runtime": "nodejs18.x"
     }
-  },
-  "env": {
-    "MONGODB_URI": "@MONGODB_URI",
-    "JWT_SECRET": "@JWT_SECRET",
-    "VITE_API_URL": "@VITE_API_URL"
   }
 }
