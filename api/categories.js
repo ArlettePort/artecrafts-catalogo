@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+const mongoose = require('mongoose');
 
 const categorySchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
@@ -11,25 +11,27 @@ const categorySchema = new mongoose.Schema({
 
 const Category = mongoose.models.Category || mongoose.model('Category', categorySchema);
 
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
+  }
+
+  const mongoUri = process.env.MONGODB_URI;
+  if (!mongoUri) {
+    return res.status(500).json({ error: 'MONGODB_URI not configured' });
   }
 
   try {
-    const mongoUri = process.env.MONGODB_URI;
-    if (!mongoUri) {
-      return res.status(500).json({ error: 'MONGODB_URI not configured' });
-    }
-
-    // Connect if not already connected
+    // Connect if not connected
     if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(mongoUri, { bufferCommands: false });
+      await mongoose.connect(mongoUri, {
+        bufferCommands: false,
+        serverSelectionTimeoutMS: 5000,
+      });
     }
 
     if (req.method === 'GET') {
@@ -53,7 +55,7 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
-    console.error('Error:', error);
+    console.error('MongoDB Error:', error.message);
     return res.status(500).json({ error: error.message });
   }
-}
+};
