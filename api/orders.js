@@ -1,23 +1,5 @@
 import { MongoClient, ObjectId } from 'mongodb';
 
-let cachedClient = null;
-
-async function connectDB() {
-  if (cachedClient) return cachedClient;
-
-  const mongoUri = process.env.MONGODB_URI;
-  if (!mongoUri) throw new Error('MONGODB_URI not configured');
-
-  const client = new MongoClient(mongoUri, {
-    maxPoolSize: 10,
-    serverSelectionTimeoutMS: 5000,
-  });
-
-  await client.connect();
-  cachedClient = client;
-  return client;
-}
-
 function generateOrderNumber() {
   return `ORD-${Date.now()}-${Math.random().toString(36).slice(2, 11).toUpperCase()}`;
 }
@@ -31,8 +13,23 @@ export default async (req, res) => {
     return res.status(200).end();
   }
 
+  const mongoUri = process.env.MONGODB_URI;
+  if (!mongoUri) {
+    return res.status(500).json({ error: 'MONGODB_URI not configured' });
+  }
+
+  let client;
   try {
-    const client = await connectDB();
+    client = new MongoClient(mongoUri, {
+      maxPoolSize: 1,
+      minPoolSize: 0,
+      serverSelectionTimeoutMS: 15000,
+      socketTimeoutMS: 15000,
+      connectTimeoutMS: 10000,
+      retryWrites: true,
+    });
+
+    await client.connect();
     const db = client.db('artecrafts');
     const collection = db.collection('orders');
 
@@ -73,7 +70,15 @@ export default async (req, res) => {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
-    console.error('API Error:', error);
+    console.error('Error:', error.message);
     return res.status(500).json({ error: error.message });
+  } finally {
+    if (client) {
+      try {
+        await client.close();
+      } catch (closeError) {
+        console.error('Error closing client:', closeError);
+      }
+    }
   }
 };
