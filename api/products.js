@@ -1,37 +1,31 @@
-const mongoose = require('mongoose');
+const { MongoClient, ObjectId } = require('mongodb');
 
-const productVariantSchema = new mongoose.Schema({
-  id: String,
-  name: String,
-  inStock: Boolean,
-});
+let cachedClient = null;
 
-const productSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  category: { type: String, required: true },
-  price: { type: Number, required: true },
-  originalPrice: Number,
-  images: [String],
-  mainImage: String,
-  description: { type: String, required: true },
-  shortDescription: String,
-  materials: [String],
-  dimensions: String,
-  stock: { type: Number, default: 0 },
-  manageStock: { type: Boolean, default: true },
-  isAvailable: { type: Boolean, default: true },
-  isNew: { type: Boolean, default: false },
-  isFeatured: { type: Boolean, default: false },
-  status: { type: String, enum: ['published', 'hidden', 'draft'], default: 'draft' },
-  rating: { type: Number, default: 5 },
-  reviewsCount: { type: Number, default: 0 },
-  variants: {
-    type: { type: String },
-    options: [productVariantSchema],
-  },
-}, { timestamps: true });
+async function connectDB() {
+  if (cachedClient) {
+    return cachedClient;
+  }
 
-const Product = mongoose.models.Product || mongoose.model('Product', productSchema);
+  const mongoUri = process.env.MONGODB_URI;
+  if (!mongoUri) {
+    throw new Error('MONGODB_URI not configured');
+  }
+
+  try {
+    const client = new MongoClient(mongoUri, {
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+    });
+
+    await client.connect();
+    cachedClient = client;
+    return client;
+  } catch (error) {
+    console.error('MongoDB Connection Error:', error);
+    throw error;
+  }
+}
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -42,18 +36,10 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  const mongoUri = process.env.MONGODB_URI;
-  if (!mongoUri) {
-    return res.status(500).json({ error: 'MONGODB_URI not configured' });
-  }
-
   try {
-    if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(mongoUri, {
-        bufferCommands: false,
-        serverSelectionTimeoutMS: 5000,
-      });
-    }
+    const client = await connectDB();
+    const db = client.db('artecrafts');
+    const collection = db.collection('products');
 
     if (req.method === 'GET') {
       const { category, featured, status } = req.query;
@@ -62,27 +48,41 @@ module.exports = async (req, res) => {
       if (featured) query.isFeatured = true;
       if (status) query.status = status;
 
-      const products = await Product.find(query).sort({ createdAt: -1 });
+      const products = await collection
+        .find(query)
+        .sort({ createdAt: -1 })
+        .toArray();
       return res.status(200).json(products);
     }
+
     if (req.method === 'POST') {
-      const product = await Product.create(req.body);
-      return res.status(201).json(product);
+      const result = await collection.insertOne({
+        ...req.body,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      return res.status(201).json({ _id: result.insertedId, ...req.body });
     }
+
     if (req.method === 'PUT') {
       const { id } = req.query;
-      const product = await Product.findByIdAndUpdate(id, req.body, { new: true });
-      return res.status(200).json(product);
+      const result = await collection.findOneAndUpdate(
+        { _id: new ObjectId(id) },
+        { $set: { ...req.body, updatedAt: new Date() } },
+        { returnDocument: 'after' }
+      );
+      return res.status(200).json(result.value);
     }
+
     if (req.method === 'DELETE') {
       const { id } = req.query;
-      await Product.findByIdAndDelete(id);
+      await collection.deleteOne({ _id: new ObjectId(id) });
       return res.status(200).json({ message: 'Product deleted' });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
-    console.error('MongoDB Error:', error.message);
+    console.error('API Error:', error);
     return res.status(500).json({ error: error.message });
   }
 };

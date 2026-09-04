@@ -1,15 +1,31 @@
-const mongoose = require('mongoose');
+const { MongoClient } = require('mongodb');
 
-const categorySchema = new mongoose.Schema({
-  name: { type: String, required: true, unique: true },
-  iconName: { type: String, required: true },
-  image: { type: String, required: true },
-  tagline: { type: String, required: true },
-  description: String,
-  status: { type: String, enum: ['active', 'inactive'], default: 'active' },
-}, { timestamps: true });
+let cachedClient = null;
 
-const Category = mongoose.models.Category || mongoose.model('Category', categorySchema);
+async function connectDB() {
+  if (cachedClient) {
+    return cachedClient;
+  }
+
+  const mongoUri = process.env.MONGODB_URI;
+  if (!mongoUri) {
+    throw new Error('MONGODB_URI not configured');
+  }
+
+  try {
+    const client = new MongoClient(mongoUri, {
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+    });
+
+    await client.connect();
+    cachedClient = client;
+    return client;
+  } catch (error) {
+    console.error('MongoDB Connection Error:', error);
+    throw error;
+  }
+}
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -20,42 +36,49 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  const mongoUri = process.env.MONGODB_URI;
-  if (!mongoUri) {
-    return res.status(500).json({ error: 'MONGODB_URI not configured' });
-  }
-
   try {
-    // Connect if not connected
-    if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(mongoUri, {
-        bufferCommands: false,
-        serverSelectionTimeoutMS: 5000,
-      });
-    }
+    const client = await connectDB();
+    const db = client.db('artecrafts');
+    const collection = db.collection('categories');
 
     if (req.method === 'GET') {
-      const categories = await Category.find({ status: 'active' }).sort({ createdAt: 1 });
+      const categories = await collection
+        .find({ status: 'active' })
+        .sort({ createdAt: 1 })
+        .toArray();
       return res.status(200).json(categories);
     }
+
     if (req.method === 'POST') {
-      const category = await Category.create(req.body);
-      return res.status(201).json(category);
+      const result = await collection.insertOne({
+        ...req.body,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      return res.status(201).json({ _id: result.insertedId, ...req.body });
     }
+
     if (req.method === 'PUT') {
       const { id } = req.query;
-      const category = await Category.findByIdAndUpdate(id, req.body, { new: true });
-      return res.status(200).json(category);
+      const { ObjectId } = require('mongodb');
+      const result = await collection.findOneAndUpdate(
+        { _id: new ObjectId(id) },
+        { $set: { ...req.body, updatedAt: new Date() } },
+        { returnDocument: 'after' }
+      );
+      return res.status(200).json(result.value);
     }
+
     if (req.method === 'DELETE') {
       const { id } = req.query;
-      await Category.findByIdAndDelete(id);
+      const { ObjectId } = require('mongodb');
+      await collection.deleteOne({ _id: new ObjectId(id) });
       return res.status(200).json({ message: 'Category deleted' });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
-    console.error('MongoDB Error:', error.message);
+    console.error('API Error:', error);
     return res.status(500).json({ error: error.message });
   }
 };
