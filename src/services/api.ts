@@ -183,6 +183,20 @@ export const api = {
     }
   },
 
+  async deleteOrder(id: string) {
+    try {
+      const response = await fetch(`${API_URL}/api/orders?id=${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    } catch (error) {
+      console.error('deleteOrder error:', error);
+      throw error;
+    }
+  },
+
   // Auth
   async login(email: string, password: string) {
     try {

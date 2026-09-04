@@ -349,61 +349,148 @@ export default function App() {
   };
 
   // Admin CRUD Actions
-  const handleSaveProduct = (
+  const handleSaveProduct = async (
     productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'rating' | 'reviewsCount'>,
     productId?: string
   ) => {
-    if (productId) {
-      CatalogStore.updateProduct(productId, productData);
-      showToast(`✨ Producto "${productData.name}" actualizado con éxito.`);
-    } else {
-      CatalogStore.addProduct(productData);
-      showToast(`🎉 Nueva creación "${productData.name}" añadida al catálogo.`);
+    try {
+      if (productId) {
+        await CatalogStore.updateProduct(productId, productData);
+        showToast(`✨ Producto "${productData.name}" actualizado con éxito.`);
+      } else {
+        await CatalogStore.addProduct(productData);
+        showToast(`🎉 Nueva creación "${productData.name}" añadida al catálogo.`);
+      }
+      setIsCreatingProduct(false);
+      setEditingProduct(null);
+      setAdminSection('products');
+    } catch (error) {
+      showToast(`❌ Error: ${error instanceof Error ? error.message : 'No se pudo guardar el producto'}`);
     }
-    setIsCreatingProduct(false);
-    setEditingProduct(null);
-    setAdminSection('products');
   };
 
-  const handleConfirmDeleteProduct = (id: string) => {
-    CatalogStore.deleteProduct(id);
-    setDeletingProduct(null);
-    showToast('Producto eliminado del catálogo.');
+  const handleConfirmDeleteProduct = async (id: string) => {
+    try {
+      await CatalogStore.deleteProduct(id);
+      setDeletingProduct(null);
+      showToast('Producto eliminado del catálogo.');
+    } catch (error) {
+      showToast(`❌ Error: ${error instanceof Error ? error.message : 'No se pudo eliminar el producto'}`);
+    }
   };
 
-  const handleToggleProductStatus = (productId: string) => {
-    const p = CatalogStore.getProductById(productId);
-    if (!p) return;
-    const nextStatus = p.status === 'published' ? 'hidden' : 'published';
-    CatalogStore.toggleStatus(productId, nextStatus);
-    showToast(
-      nextStatus === 'published'
-        ? `🟢 "${p.name}" ahora está visible en la tienda.`
-        : `🟡 "${p.name}" ahora está oculto del público.`
-    );
+  const handleToggleProductStatus = async (productId: string) => {
+    try {
+      const p = CatalogStore.getProductById(productId);
+      if (!p) return;
+      const nextStatus = p.status === 'published' ? 'hidden' : 'published';
+      await CatalogStore.toggleStatus(productId);
+      showToast(
+        nextStatus === 'published'
+          ? `🟢 "${p.name}" ahora está visible en la tienda.`
+          : `🟡 "${p.name}" ahora está oculto del público.`
+      );
+    } catch (error) {
+      showToast(`❌ Error: ${error instanceof Error ? error.message : 'No se pudo cambiar el estado'}`);
+    }
   };
 
-  const handleToggleProductFeatured = (productId: string) => {
-    const isNowFeatured = CatalogStore.toggleFeatured(productId);
-    showToast(
-      isNowFeatured
-        ? '⭐ Marcado como producto destacado en portada.'
-        : 'Quitado de la sección de destacados.'
-    );
+  const handleToggleProductFeatured = async (productId: string) => {
+    try {
+      const p = CatalogStore.getProductById(productId);
+      if (!p) return;
+      await CatalogStore.toggleFeatured(productId);
+      showToast(
+        p.isFeatured
+          ? 'Quitado de la sección de destacados.'
+          : '⭐ Marcado como producto destacado en portada.'
+      );
+    } catch (error) {
+      showToast(`❌ Error: ${error instanceof Error ? error.message : 'No se pudo actualizar'}`);
+    }
   };
 
-  const handleToggleProductNew = (productId: string) => {
-    const isNowNew = CatalogStore.toggleNew(productId);
-    showToast(
-      isNowNew
-        ? '✨ Marcado con la insignia "Nuevo".'
-        : 'Insignia "Nuevo" removida.'
-    );
+  const handleToggleProductNew = async (productId: string) => {
+    try {
+      const p = CatalogStore.getProductById(productId);
+      if (!p) return;
+      await CatalogStore.toggleNew(productId);
+      showToast(
+        p.isNew
+          ? 'Insignia "Nuevo" removida.'
+          : '✨ Marcado con la insignia "Nuevo".'
+      );
+    } catch (error) {
+      showToast(`❌ Error: ${error instanceof Error ? error.message : 'No se pudo actualizar'}`);
+    }
   };
 
-  const handleQuickUpdateStock = (productId: string, newStock: number) => {
-    CatalogStore.updateStock(productId, newStock);
-    showToast(`Stock actualizado a ${newStock} unidades.`);
+  const handleQuickUpdateStock = async (productId: string, newStock: number) => {
+    try {
+      await CatalogStore.updateStock(productId, newStock);
+      showToast(`Stock actualizado a ${newStock} unidades.`);
+    } catch (error) {
+      showToast(`❌ Error: ${error instanceof Error ? error.message : 'No se pudo actualizar el stock'}`);
+    }
+  };
+
+  const handleSaveCategory = async (catData: any, catId?: string) => {
+    try {
+      if (catId) {
+        await CatalogStore.updateCategory(catId, catData);
+        showToast(`Categoría "${catData.name}" actualizada.`);
+      } else {
+        await CatalogStore.addCategory(catData);
+        showToast(`Nueva categoría "${catData.name}" creada.`);
+      }
+    } catch (error) {
+      showToast(`❌ Error: ${error instanceof Error ? error.message : 'No se pudo guardar la categoría'}`);
+    }
+  };
+
+  const handleDeleteCategory = async (catId: string) => {
+    try {
+      await CatalogStore.deleteCategory(catId);
+      showToast('Categoría eliminada.');
+    } catch (error) {
+      showToast(`❌ Error: ${error instanceof Error ? error.message : 'No se pudo eliminar la categoría'}`);
+    }
+  };
+
+  const handleToggleCategoryStatus = async (catId: string) => {
+    try {
+      await CatalogStore.toggleCategoryStatus(catId);
+      showToast('Estado de categoría actualizado.');
+    } catch (error) {
+      showToast(`❌ Error: ${error instanceof Error ? error.message : 'No se pudo actualizar el estado'}`);
+    }
+  };
+
+  const handleUpdateOrderStatus = async (orderId: string, status: any) => {
+    try {
+      await CatalogStore.updateOrderStatus(orderId, status);
+      showToast(`Pedido actualizado a: ${status}`);
+    } catch (error) {
+      showToast(`❌ Error: ${error instanceof Error ? error.message : 'No se pudo actualizar el pedido'}`);
+    }
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    try {
+      await CatalogStore.deleteOrder(orderId);
+      showToast('Pedido eliminado.');
+    } catch (error) {
+      showToast(`❌ Error: ${error instanceof Error ? error.message : 'No se pudo eliminar el pedido'}`);
+    }
+  };
+
+  const handleUpdateInventoryStock = async (id: string, newStock: number, manageStock?: boolean) => {
+    try {
+      await CatalogStore.updateStock(id, newStock, manageStock);
+      showToast('Inventario actualizado.');
+    } catch (error) {
+      showToast(`❌ Error: ${error instanceof Error ? error.message : 'No se pudo actualizar el inventario'}`);
+    }
   };
 
   // -------------------------------------------------------------
@@ -520,47 +607,24 @@ export default function App() {
         {adminSection === 'categories' && (
           <AdminCategories
             categories={categories}
-            onSaveCategory={(catData, catId) => {
-              if (catId) {
-                CatalogStore.updateCategory(catId, catData);
-                showToast(`Categoría "${catData.name}" actualizada.`);
-              } else {
-                CatalogStore.addCategory(catData);
-                showToast(`Nueva categoría "${catData.name}" creada.`);
-              }
-            }}
-            onDeleteCategory={(catId) => {
-              CatalogStore.deleteCategory(catId);
-              showToast('Categoría eliminada.');
-            }}
-            onToggleCategoryStatus={(catId) => {
-              CatalogStore.toggleCategoryStatus(catId);
-              showToast('Estado de categoría actualizado.');
-            }}
+            onSaveCategory={handleSaveCategory}
+            onDeleteCategory={handleDeleteCategory}
+            onToggleCategoryStatus={handleToggleCategoryStatus}
           />
         )}
 
         {adminSection === 'orders' && (
           <AdminOrders
             orders={orders}
-            onUpdateOrderStatus={(orderId, status) => {
-              CatalogStore.updateOrderStatus(orderId, status);
-              showToast(`Pedido actualizado a: ${status}`);
-            }}
-            onDeleteOrder={(orderId) => {
-              CatalogStore.deleteOrder(orderId);
-              showToast('Pedido eliminado.');
-            }}
+            onUpdateOrderStatus={handleUpdateOrderStatus}
+            onDeleteOrder={handleDeleteOrder}
           />
         )}
 
         {adminSection === 'inventory' && (
           <AdminInventory
             products={products}
-            onUpdateStock={(id, newStock, manageStock) => {
-              CatalogStore.updateStock(id, newStock, manageStock);
-              showToast('Inventario actualizado.');
-            }}
+            onUpdateStock={handleUpdateInventoryStock}
             onEditProduct={(p) => {
               setEditingProduct(p);
               setAdminSection('products');

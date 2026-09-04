@@ -134,17 +134,12 @@ class CatalogStoreManager {
     }
   }
 
-  public createProduct(data: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'rating' | 'reviewsCount'>): Product {
-    const products = this.getProducts();
-    const now = new Date().toISOString();
-    const newId = `prod-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-
+  public async createProduct(data: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'rating' | 'reviewsCount'>): Promise<Product> {
     const mainImage = data.mainImage || (data.images && data.images[0]) || '';
     const images = data.images && data.images.length > 0 ? data.images : [mainImage];
 
-    const newProduct: Product = {
+    const newProduct: Omit<Product, 'id'> = {
       ...data,
-      id: newId,
       mainImage,
       images,
       rating: 5.0,
@@ -152,28 +147,39 @@ class CatalogStoreManager {
       manageStock: data.manageStock !== undefined ? data.manageStock : true,
       isAvailable: data.manageStock === false ? true : Number(data.stock) > 0,
       status: data.status || 'published',
-      createdAt: now,
-      updatedAt: now,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
-    const updated = [newProduct, ...products];
-    this.saveProductsToStorage(updated);
-    this.productsCache = updated;
-
-    // Try to sync with API
-    if (this.apiAvailable) {
-      api.createProduct(newProduct).catch((error) => {
-        console.error('Failed to sync product to API:', error);
-        this.apiAvailable = false;
-      });
+    try {
+      // Try to save to API first (MongoDB)
+      const savedProduct = await api.createProduct(newProduct);
+      const products = this.getProducts();
+      const updated = [savedProduct, ...products];
+      this.saveProductsToStorage(updated);
+      this.productsCache = updated;
+      this.updateCategoryCounts();
+      this.notify();
+      return savedProduct;
+    } catch (error) {
+      console.error('Failed to save product to API, saving to localStorage:', error);
+      // Fallback to localStorage
+      const newId = `prod-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      const products = this.getProducts();
+      const localProduct: Product = {
+        ...newProduct,
+        id: newId,
+      };
+      const updated = [localProduct, ...products];
+      this.saveProductsToStorage(updated);
+      this.productsCache = updated;
+      this.updateCategoryCounts();
+      this.notify();
+      throw new Error('Producto guardado localmente, pero no se sincronizó con la base de datos. Verifica tu conexión a MongoDB.');
     }
-
-    this.updateCategoryCounts();
-    this.notify();
-    return newProduct;
   }
 
-  public updateProduct(id: string, updates: Partial<Product>): Product | null {
+  public async updateProduct(id: string, updates: Partial<Product>): Promise<Product | null> {
     const products = this.getProducts();
     const index = products.findIndex((p) => p.id === id);
     if (index === -1) return null;
@@ -203,64 +209,71 @@ class CatalogStoreManager {
       updatedAt: now,
     };
 
-    products[index] = updatedProduct;
-    this.saveProductsToStorage(products);
-    this.productsCache = products;
-
-    // Try to sync with API
-    if (this.apiAvailable) {
-      api.updateProduct(id, updatedProduct).catch((error) => {
-        console.error('Failed to sync product update to API:', error);
-        this.apiAvailable = false;
-      });
+    try {
+      // Try to update in API first (MongoDB)
+      await api.updateProduct(id, updatedProduct);
+      products[index] = updatedProduct;
+      this.saveProductsToStorage(products);
+      this.productsCache = products;
+      this.updateCategoryCounts();
+      this.notify();
+      return updatedProduct;
+    } catch (error) {
+      console.error('Failed to update product in API, updating localStorage:', error);
+      // Fallback to localStorage
+      products[index] = updatedProduct;
+      this.saveProductsToStorage(products);
+      this.productsCache = products;
+      this.updateCategoryCounts();
+      this.notify();
+      throw new Error('Producto actualizado localmente, pero no se sincronizó con la base de datos. Verifica tu conexión a MongoDB.');
     }
-
-    this.updateCategoryCounts();
-    this.notify();
-    return updatedProduct;
   }
 
-  public deleteProduct(id: string): boolean {
+  public async deleteProduct(id: string): Promise<boolean> {
     const products = this.getProducts();
     const filtered = products.filter((p) => p.id !== id);
     if (filtered.length === products.length) return false;
 
-    this.saveProductsToStorage(filtered);
-    this.productsCache = filtered;
-
-    // Try to sync with API
-    if (this.apiAvailable) {
-      api.deleteProduct(id).catch((error) => {
-        console.error('Failed to sync product deletion to API:', error);
-        this.apiAvailable = false;
-      });
+    try {
+      // Try to delete from API first (MongoDB)
+      await api.deleteProduct(id);
+      this.saveProductsToStorage(filtered);
+      this.productsCache = filtered;
+      this.updateCategoryCounts();
+      this.notify();
+      return true;
+    } catch (error) {
+      console.error('Failed to delete product from API, updating localStorage:', error);
+      // Fallback to localStorage
+      this.saveProductsToStorage(filtered);
+      this.productsCache = filtered;
+      this.updateCategoryCounts();
+      this.notify();
+      throw new Error('Producto eliminado localmente, pero no se sincronizó con la base de datos. Verifica tu conexión a MongoDB.');
     }
-
-    this.updateCategoryCounts();
-    this.notify();
-    return true;
   }
 
-  public toggleProductStatus(id: string): Product | null {
+  public async toggleProductStatus(id: string): Promise<Product | null> {
     const product = this.getProductById(id);
     if (!product) return null;
     const newStatus = product.status === 'published' ? 'hidden' : 'published';
     return this.updateProduct(id, { status: newStatus });
   }
 
-  public toggleProductFeatured(id: string): Product | null {
+  public async toggleProductFeatured(id: string): Promise<Product | null> {
     const product = this.getProductById(id);
     if (!product) return null;
     return this.updateProduct(id, { isFeatured: !product.isFeatured });
   }
 
-  public toggleProductNew(id: string): Product | null {
+  public async toggleProductNew(id: string): Promise<Product | null> {
     const product = this.getProductById(id);
     if (!product) return null;
     return this.updateProduct(id, { isNew: !product.isNew });
   }
 
-  public updateStock(id: string, stock: number, manageStock?: boolean): Product | null {
+  public async updateStock(id: string, stock: number, manageStock?: boolean): Promise<Product | null> {
     return this.updateProduct(id, {
       stock,
       manageStock: manageStock !== undefined ? manageStock : true,
@@ -316,8 +329,7 @@ class CatalogStoreManager {
     }
   }
 
-  public createCategory(data: Omit<Category, 'id' | 'itemCount'> & { id?: string }): Category {
-    const categories = this.getCategories();
+  public async createCategory(data: Omit<Category, 'id' | 'itemCount'> & { id?: string }): Promise<Category> {
     const id = data.id || data.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
     const newCategory: Category = {
       ...data,
@@ -325,66 +337,80 @@ class CatalogStoreManager {
       itemCount: 0,
       status: data.status || 'active',
     };
-    const updated = [...categories, newCategory];
-    this.saveCategoriesToStorage(updated);
-    this.categoriesCache = updated;
 
-    // Try to sync with API
-    if (this.apiAvailable) {
-      api.createCategory(newCategory).catch((error) => {
-        console.error('Failed to sync category to API:', error);
-        this.apiAvailable = false;
-      });
+    try {
+      // Try to save to API first (MongoDB)
+      const savedCategory = await api.createCategory(newCategory);
+      const categories = this.getCategories();
+      const updated = [...categories, savedCategory];
+      this.saveCategoriesToStorage(updated);
+      this.categoriesCache = updated;
+      this.updateCategoryCounts();
+      this.notify();
+      return savedCategory;
+    } catch (error) {
+      console.error('Failed to save category to API, saving to localStorage:', error);
+      // Fallback to localStorage
+      const categories = this.getCategories();
+      const updated = [...categories, newCategory];
+      this.saveCategoriesToStorage(updated);
+      this.categoriesCache = updated;
+      this.updateCategoryCounts();
+      this.notify();
+      throw new Error('Categoría guardada localmente, pero no se sincronizó con la base de datos. Verifica tu conexión a MongoDB.');
     }
-
-    this.updateCategoryCounts();
-    this.notify();
-    return newCategory;
   }
 
-  public updateCategory(id: string, updates: Partial<Category>): Category | null {
+  public async updateCategory(id: string, updates: Partial<Category>): Promise<Category | null> {
     const categories = this.getCategories();
     const index = categories.findIndex((c) => c.id === id);
     if (index === -1) return null;
 
-    categories[index] = { ...categories[index], ...updates };
-    this.saveCategoriesToStorage(categories);
-    this.categoriesCache = categories;
+    const updatedCategory = { ...categories[index], ...updates };
 
-    // Try to sync with API
-    if (this.apiAvailable) {
-      api.updateCategory(id, categories[index]).catch((error) => {
-        console.error('Failed to sync category update to API:', error);
-        this.apiAvailable = false;
-      });
+    try {
+      // Try to update in API first (MongoDB)
+      await api.updateCategory(id, updatedCategory);
+      categories[index] = updatedCategory;
+      this.saveCategoriesToStorage(categories);
+      this.categoriesCache = categories;
+      this.notify();
+      return updatedCategory;
+    } catch (error) {
+      console.error('Failed to update category in API, updating localStorage:', error);
+      // Fallback to localStorage
+      categories[index] = updatedCategory;
+      this.saveCategoriesToStorage(categories);
+      this.categoriesCache = categories;
+      this.notify();
+      throw new Error('Categoría actualizada localmente, pero no se sincronizó con la base de datos. Verifica tu conexión a MongoDB.');
     }
-
-    this.notify();
-    return categories[index];
   }
 
-  public deleteCategory(id: string): boolean {
+  public async deleteCategory(id: string): Promise<boolean> {
     const categories = this.getCategories();
     if (id === 'todos') return false; // Protected
     const filtered = categories.filter((c) => c.id !== id);
     if (filtered.length === categories.length) return false;
 
-    this.saveCategoriesToStorage(filtered);
-    this.categoriesCache = filtered;
-
-    // Try to sync with API
-    if (this.apiAvailable) {
-      api.deleteCategory(id).catch((error) => {
-        console.error('Failed to sync category deletion to API:', error);
-        this.apiAvailable = false;
-      });
+    try {
+      // Try to delete from API first (MongoDB)
+      await api.deleteCategory(id);
+      this.saveCategoriesToStorage(filtered);
+      this.categoriesCache = filtered;
+      this.notify();
+      return true;
+    } catch (error) {
+      console.error('Failed to delete category from API, updating localStorage:', error);
+      // Fallback to localStorage
+      this.saveCategoriesToStorage(filtered);
+      this.categoriesCache = filtered;
+      this.notify();
+      throw new Error('Categoría eliminada localmente, pero no se sincronizó con la base de datos. Verifica tu conexión a MongoDB.');
     }
-
-    this.notify();
-    return true;
   }
 
-  public toggleCategoryStatus(id: string): Category | null {
+  public async toggleCategoryStatus(id: string): Promise<Category | null> {
     const cat = this.getCategories().find((c) => c.id === id);
     if (!cat) return null;
     return this.updateCategory(id, {
@@ -471,90 +497,106 @@ class CatalogStoreManager {
     }
   }
 
-  public createOrder(data: {
+  public async createOrder(data: {
     orderNumber: string;
     customer: OrderCustomerInfo;
     items: CartItem[];
     total: number;
     notes?: string;
-  }): Order {
-    const orders = this.getOrders();
+  }): Promise<Order> {
     const now = new Date().toISOString();
-    const orderId = `ord-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-
-    const newOrder: Order = {
-      id: orderId,
-      orderNumber: data.orderNumber,
+    const newOrderData = {
       customer: data.customer,
       items: data.items,
       total: data.total,
-      status: 'pending',
-      createdAt: now,
-      updatedAt: now,
+      status: 'pending' as const,
       notes: data.notes,
     };
 
-    const updated = [newOrder, ...orders];
-    this.saveOrdersToStorage(updated);
-    this.ordersCache = updated;
-
-    // Try to sync with API
-    if (this.apiAvailable) {
-      api.createOrder(newOrder).catch((error) => {
-        console.error('Failed to sync order to API:', error);
-        this.apiAvailable = false;
-      });
+    try {
+      // Try to save to API first (MongoDB)
+      const savedOrder = await api.createOrder(newOrderData);
+      const orders = this.getOrders();
+      const updated = [savedOrder, ...orders];
+      this.saveOrdersToStorage(updated);
+      this.ordersCache = updated;
+      this.notify();
+      return savedOrder;
+    } catch (error) {
+      console.error('Failed to save order to API, saving to localStorage:', error);
+      // Fallback to localStorage
+      const orderId = `ord-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      const newOrder: Order = {
+        id: orderId,
+        orderNumber: data.orderNumber,
+        customer: data.customer,
+        items: data.items,
+        total: data.total,
+        status: 'pending',
+        createdAt: now,
+        updatedAt: now,
+        notes: data.notes,
+      };
+      const orders = this.getOrders();
+      const updated = [newOrder, ...orders];
+      this.saveOrdersToStorage(updated);
+      this.ordersCache = updated;
+      this.notify();
+      throw new Error('Pedido guardado localmente, pero no se sincronizó con la base de datos. Verifica tu conexión a MongoDB.');
     }
-
-    this.notify();
-    return newOrder;
   }
 
-  public updateOrderStatus(orderId: string, status: Order['status']): Order | null {
+  public async updateOrderStatus(orderId: string, status: Order['status']): Promise<Order | null> {
     const orders = this.getOrders();
     const index = orders.findIndex((o) => o.id === orderId);
     if (index === -1) return null;
 
     const now = new Date().toISOString();
-    orders[index] = {
+    const updatedOrder = {
       ...orders[index],
       status,
       updatedAt: now,
     };
 
-    this.saveOrdersToStorage(orders);
-    this.ordersCache = orders;
-
-    // Try to sync with API
-    if (this.apiAvailable) {
-      api.updateOrder(orderId, orders[index]).catch((error) => {
-        console.error('Failed to sync order update to API:', error);
-        this.apiAvailable = false;
-      });
+    try {
+      // Try to update in API first (MongoDB)
+      await api.updateOrder(orderId, updatedOrder);
+      orders[index] = updatedOrder;
+      this.saveOrdersToStorage(orders);
+      this.ordersCache = orders;
+      this.notify();
+      return updatedOrder;
+    } catch (error) {
+      console.error('Failed to update order in API, updating localStorage:', error);
+      // Fallback to localStorage
+      orders[index] = updatedOrder;
+      this.saveOrdersToStorage(orders);
+      this.ordersCache = orders;
+      this.notify();
+      throw new Error('Pedido actualizado localmente, pero no se sincronizó con la base de datos. Verifica tu conexión a MongoDB.');
     }
-
-    this.notify();
-    return orders[index];
   }
 
-  public deleteOrder(orderId: string): boolean {
+  public async deleteOrder(orderId: string): Promise<boolean> {
     const orders = this.getOrders();
     const filtered = orders.filter((o) => o.id !== orderId);
     if (filtered.length === orders.length) return false;
 
-    this.saveOrdersToStorage(filtered);
-    this.ordersCache = filtered;
-
-    // Try to sync with API
-    if (this.apiAvailable) {
-      api.deleteProduct(orderId).catch((error) => {
-        console.error('Failed to sync order deletion to API:', error);
-        this.apiAvailable = false;
-      });
+    try {
+      // Try to delete from API first (MongoDB)
+      await api.deleteOrder(orderId);
+      this.saveOrdersToStorage(filtered);
+      this.ordersCache = filtered;
+      this.notify();
+      return true;
+    } catch (error) {
+      console.error('Failed to delete order from API, updating localStorage:', error);
+      // Fallback to localStorage
+      this.saveOrdersToStorage(filtered);
+      this.ordersCache = filtered;
+      this.notify();
+      throw new Error('Pedido eliminado localmente, pero no se sincronizó con la base de datos. Verifica tu conexión a MongoDB.');
     }
-
-    this.notify();
-    return true;
   }
 
   public subscribeOrders(cb: (orders: Order[]) => void): () => void {
