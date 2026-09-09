@@ -1,6 +1,7 @@
 import React from 'react';
 import { Search, Heart, ShoppingBag, Sparkles, ShieldCheck } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
+import { Category } from '../types';
 
 interface HeaderProps {
   onOpenSearch: () => void;
@@ -12,6 +13,7 @@ interface HeaderProps {
   isAdminAuthenticated?: boolean;
   favoritesCount: number;
   cartCount: number;
+  categories?: Category[];
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,6 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
   isAdminAuthenticated = false,
   favoritesCount,
   cartCount,
+  categories = [],
 }) => {
   return (
     <header className="sticky top-0 z-30 w-full bg-white/90 backdrop-blur-md border-b border-rose-100 transition-all">
@@ -69,30 +72,15 @@ export const Header: React.FC<HeaderProps> = ({
           >
             Inicio
           </button>
-          <button
-            onClick={() => onSelectCategory('velas')}
-            className="hover:text-rose-600 transition-colors py-1"
-          >
-            Velas & Aromas
-          </button>
-          <button
-            onClick={() => onSelectCategory('ceramica')}
-            className="hover:text-rose-600 transition-colors py-1"
-          >
-            Cerámica
-          </button>
-          <button
-            onClick={() => onSelectCategory('joyeria')}
-            className="hover:text-rose-600 transition-colors py-1"
-          >
-            Joyería
-          </button>
-          <button
-            onClick={() => onSelectCategory('papeleria')}
-            className="hover:text-rose-600 transition-colors py-1"
-          >
-            Papelería
-          </button>
+          {categories.map((category) => (
+            <button
+              key={category.id}
+              onClick={() => onSelectCategory(category.id)}
+              className="hover:text-rose-600 transition-colors py-1"
+            >
+              {category.name}
+            </button>
+          ))}
         </nav>
 
         {/* Action icons */}

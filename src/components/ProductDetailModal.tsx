@@ -71,12 +71,19 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         {/* Header bar with close & favorite */}
         <div className="sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 py-3.5 bg-white/95 backdrop-blur-sm border-b border-rose-100/70">
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-100">
-              {product.category}
-            </span>
+            {product.category && product.category !== product.id && (
+              <span className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-100">
+                {product.category}
+              </span>
+            )}
             {product.isNew && (
               <span className="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-pink-100 text-pink-700">
                 Nuevo
+              </span>
+            )}
+            {product.isFeatured && !product.isNew && (
+              <span className="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                Destacado
               </span>
             )}
           </div>

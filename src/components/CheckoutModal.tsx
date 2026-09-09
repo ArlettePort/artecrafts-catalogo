@@ -3,9 +3,6 @@ import {
   X,
   CheckCircle,
   MessageCircle,
-  CreditCard,
-  Truck,
-  Building,
   Sparkles,
   ArrowRight,
 } from 'lucide-react';
@@ -285,68 +282,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     </p>
                     <p className="text-[11px] text-stone-500">
                       Te respondemos de inmediato para afinar detalles y acordar tu entrega.
-                    </p>
-                  </div>
-                </div>
-              </label>
-
-              <label
-                className={`flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition-all ${
-                  customer.paymentMethod === 'transferencia'
-                    ? 'border-rose-400 bg-rose-50/60 shadow-xs'
-                    : 'border-stone-200 hover:border-rose-200 bg-white'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="payment"
-                  checked={customer.paymentMethod === 'transferencia'}
-                  onChange={() =>
-                    setCustomer({ ...customer, paymentMethod: 'transferencia' })
-                  }
-                  className="accent-rose-600"
-                />
-                <div className="flex items-center gap-2.5 flex-1">
-                  <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
-                    <Building size={16} />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-stone-900">
-                      Transferencia Bancaria
-                    </p>
-                    <p className="text-[11px] text-stone-500">
-                      Recibe los datos de cuenta y envía tu comprobante.
-                    </p>
-                  </div>
-                </div>
-              </label>
-
-              <label
-                className={`flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition-all ${
-                  customer.paymentMethod === 'contra-entrega'
-                    ? 'border-rose-400 bg-rose-50/60 shadow-xs'
-                    : 'border-stone-200 hover:border-rose-200 bg-white'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="payment"
-                  checked={customer.paymentMethod === 'contra-entrega'}
-                  onChange={() =>
-                    setCustomer({ ...customer, paymentMethod: 'contra-entrega' })
-                  }
-                  className="accent-rose-600"
-                />
-                <div className="flex items-center gap-2.5 flex-1">
-                  <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
-                    <Truck size={16} />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-stone-900">
-                      Pago Contra Entrega
-                    </p>
-                    <p className="text-[11px] text-stone-500">
-                      Paga en efectivo al recibir tu paquete en tu domicilio.
                     </p>
                   </div>
                 </div>

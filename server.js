@@ -8,11 +8,14 @@ const app = express();
 const PORT = 3000;
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin || '*';
+  res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
@@ -131,7 +134,11 @@ app.get('/api/products', async (req, res) => {
     if (featured) query.isFeatured = true;
     if (status) query.status = status;
     const products = await Product.find(query).sort({ createdAt: -1 });
-    res.status(200).json(products);
+    const transformed = products.map((prod) => ({
+      ...prod.toObject(),
+      id: prod._id.toString(),
+    }));
+    res.status(200).json(transformed);
   } catch (error) {
     console.error('GET /api/products error:', error);
     res.status(500).json({ error: error.message });
@@ -142,7 +149,11 @@ app.post('/api/products', async (req, res) => {
   try {
     await connectDB();
     const product = await Product.create(req.body);
-    res.status(201).json(product);
+    const prodObj = product.toObject();
+    res.status(201).json({
+      ...prodObj,
+      id: prodObj._id.toString(),
+    });
   } catch (error) {
     console.error('POST /api/products error:', error);
     res.status(500).json({ error: error.message });
@@ -153,8 +164,15 @@ app.put('/api/products', async (req, res) => {
   try {
     await connectDB();
     const { id } = req.query;
+    if (!id) {
+      return res.status(400).json({ error: 'ID is required' });
+    }
     const product = await Product.findByIdAndUpdate(id, req.body, { new: true });
-    res.status(200).json(product);
+    const prodObj = product.toObject();
+    res.status(200).json({
+      ...prodObj,
+      id: prodObj._id.toString(),
+    });
   } catch (error) {
     console.error('PUT /api/products error:', error);
     res.status(500).json({ error: error.message });
@@ -165,6 +183,9 @@ app.delete('/api/products', async (req, res) => {
   try {
     await connectDB();
     const { id } = req.query;
+    if (!id) {
+      return res.status(400).json({ error: 'ID is required' });
+    }
     await Product.findByIdAndDelete(id);
     res.status(200).json({ message: 'Product deleted' });
   } catch (error) {
@@ -178,7 +199,11 @@ app.get('/api/categories', async (req, res) => {
   try {
     await connectDB();
     const categories = await Category.find({ status: 'active' }).sort({ createdAt: 1 });
-    res.status(200).json(categories);
+    const transformed = categories.map((cat) => ({
+      ...cat.toObject(),
+      id: cat._id.toString(),
+    }));
+    res.status(200).json(transformed);
   } catch (error) {
     console.error('GET /api/categories error:', error);
     res.status(500).json({ error: error.message });
@@ -189,7 +214,11 @@ app.post('/api/categories', async (req, res) => {
   try {
     await connectDB();
     const category = await Category.create(req.body);
-    res.status(201).json(category);
+    const catObj = category.toObject();
+    res.status(201).json({
+      ...catObj,
+      id: catObj._id.toString(),
+    });
   } catch (error) {
     console.error('POST /api/categories error:', error);
     res.status(500).json({ error: error.message });
@@ -200,8 +229,15 @@ app.put('/api/categories', async (req, res) => {
   try {
     await connectDB();
     const { id } = req.query;
+    if (!id) {
+      return res.status(400).json({ error: 'ID is required' });
+    }
     const category = await Category.findByIdAndUpdate(id, req.body, { new: true });
-    res.status(200).json(category);
+    const catObj = category.toObject();
+    res.status(200).json({
+      ...catObj,
+      id: catObj._id.toString(),
+    });
   } catch (error) {
     console.error('PUT /api/categories error:', error);
     res.status(500).json({ error: error.message });
@@ -212,6 +248,9 @@ app.delete('/api/categories', async (req, res) => {
   try {
     await connectDB();
     const { id } = req.query;
+    if (!id) {
+      return res.status(400).json({ error: 'ID is required' });
+    }
     await Category.findByIdAndDelete(id);
     res.status(200).json({ message: 'Category deleted' });
   } catch (error) {
@@ -225,7 +264,11 @@ app.get('/api/orders', async (req, res) => {
   try {
     await connectDB();
     const orders = await Order.find().sort({ createdAt: -1 });
-    res.status(200).json(orders);
+    const transformed = orders.map((ord) => ({
+      ...ord.toObject(),
+      id: ord._id.toString(),
+    }));
+    res.status(200).json(transformed);
   } catch (error) {
     console.error('GET /api/orders error:', error);
     res.status(500).json({ error: error.message });
@@ -240,7 +283,11 @@ app.post('/api/orders', async (req, res) => {
       orderNumber: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
     };
     const order = await Order.create(orderData);
-    res.status(201).json(order);
+    const ordObj = order.toObject();
+    res.status(201).json({
+      ...ordObj,
+      id: ordObj._id.toString(),
+    });
   } catch (error) {
     console.error('POST /api/orders error:', error);
     res.status(500).json({ error: error.message });
@@ -251,8 +298,15 @@ app.put('/api/orders', async (req, res) => {
   try {
     await connectDB();
     const { id } = req.query;
+    if (!id) {
+      return res.status(400).json({ error: 'ID is required' });
+    }
     const order = await Order.findByIdAndUpdate(id, req.body, { new: true });
-    res.status(200).json(order);
+    const ordObj = order.toObject();
+    res.status(200).json({
+      ...ordObj,
+      id: ordObj._id.toString(),
+    });
   } catch (error) {
     console.error('PUT /api/orders error:', error);
     res.status(500).json({ error: error.message });
@@ -263,6 +317,9 @@ app.delete('/api/orders', async (req, res) => {
   try {
     await connectDB();
     const { id } = req.query;
+    if (!id) {
+      return res.status(400).json({ error: 'ID is required' });
+    }
     await Order.findByIdAndDelete(id);
     res.status(200).json({ message: 'Order deleted' });
   } catch (error) {

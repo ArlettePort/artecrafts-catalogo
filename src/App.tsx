@@ -712,6 +712,7 @@ export default function App() {
         isAdminAuthenticated={AuthService.isAuthenticated()}
         favoritesCount={favorites.length}
         cartCount={totalCartCount}
+        categories={categories}
       />
 
       {/* Main Customer Body */}

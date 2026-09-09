@@ -130,10 +130,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             {product.name}
           </h3>
 
-          {/* Short description */}
-          <p className="text-[11px] text-stone-500 line-clamp-1 mt-0.5 font-normal">
-            {product.shortDescription}
-          </p>
+          {/* Short description - only show if not the product ID */}
+          {product.shortDescription && product.shortDescription !== product.id && (
+            <p className="text-[11px] text-stone-500 line-clamp-1 mt-0.5 font-normal">
+              {product.shortDescription}
+            </p>
+          )}
         </div>
 
         {/* Price & Action Row */}
