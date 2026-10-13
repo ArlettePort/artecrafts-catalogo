@@ -55,12 +55,22 @@ export default async (req, res) => {
     }
 
     if (req.method === 'POST') {
-      const result = await collection.insertOne({
+      const productData = {
         ...req.body,
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
-      return res.status(201).json({ _id: result.insertedId, ...req.body });
+      };
+
+      // Ensure variants is properly formatted
+      if (productData.variants && typeof productData.variants === 'object') {
+        productData.variants = {
+          type: productData.variants.type || '',
+          options: Array.isArray(productData.variants.options) ? productData.variants.options : [],
+        };
+      }
+
+      const result = await collection.insertOne(productData);
+      return res.status(201).json({ _id: result.insertedId, ...productData });
     }
 
     if (req.method === 'PUT') {
@@ -68,17 +78,31 @@ export default async (req, res) => {
       if (!id) {
         return res.status(400).json({ error: 'ID is required' });
       }
+
+      const updateData = {
+        ...req.body,
+        updatedAt: new Date(),
+      };
+
+      // Ensure variants is properly formatted
+      if (updateData.variants && typeof updateData.variants === 'object') {
+        updateData.variants = {
+          type: updateData.variants.type || '',
+          options: Array.isArray(updateData.variants.options) ? updateData.variants.options : [],
+        };
+      }
+
       let result;
       try {
         result = await collection.findOneAndUpdate(
           { _id: new ObjectId(id) },
-          { $set: { ...req.body, updatedAt: new Date() } },
+          { $set: updateData },
           { returnDocument: 'after' }
         );
       } catch (e) {
         result = await collection.findOneAndUpdate(
           { id },
-          { $set: { ...req.body, updatedAt: new Date() } },
+          { $set: updateData },
           { returnDocument: 'after' }
         );
       }

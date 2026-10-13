@@ -40,6 +40,11 @@ async function connectDB() {
     cached.promise = mongoose
       .connect(MONGODB_URI, {
         bufferCommands: false,
+        serverSelectionTimeoutMS: 30000,
+        connectTimeoutMS: 30000,
+        socketTimeoutMS: 30000,
+        retryWrites: true,
+        authSource: 'admin',
       })
       .then((mongoose) => mongoose);
   }
@@ -52,7 +57,12 @@ const productVariantSchema = new mongoose.Schema({
   id: String,
   name: String,
   inStock: Boolean,
-});
+}, { _id: false });
+
+const variantsSchema = new mongoose.Schema({
+  type: String,
+  options: [productVariantSchema],
+}, { _id: false });
 
 const productSchema = new mongoose.Schema(
   {
@@ -74,10 +84,7 @@ const productSchema = new mongoose.Schema(
     status: { type: String, enum: ['published', 'hidden', 'draft'], default: 'draft' },
     rating: { type: Number, default: 5 },
     reviewsCount: { type: Number, default: 0 },
-    variants: {
-      type: String,
-      options: [productVariantSchema],
-    },
+    variants: variantsSchema,
   },
   { timestamps: true }
 );
@@ -127,7 +134,10 @@ const Order = mongoose.models.Order || mongoose.model('Order', orderSchema);
 // Routes: Products
 app.get('/api/products', async (req, res) => {
   try {
+    console.log('📥 GET /api/products request');
     await connectDB();
+    console.log('✅ DB connected');
+
     const { category, featured, status } = req.query;
     let query = {};
     if (category && category !== 'all') query.category = category;
@@ -136,10 +146,13 @@ app.get('/api/products', async (req, res) => {
 
     let products;
     try {
+      console.log('⏳ Finding products with query:', JSON.stringify(query));
       products = await Product.find(query).sort({ createdAt: -1 }).lean();
+      console.log(`✅ Found ${products.length} products`);
     } catch (e) {
-      console.log('Sort by createdAt failed, trying without sort:', e.message);
+      console.log('⚠️ Sort failed:', e.message);
       products = await Product.find(query).lean();
+      console.log(`✅ Found ${products.length} products (without sort)`);
     }
 
     const transformed = products.map((prod) => ({
@@ -148,9 +161,11 @@ app.get('/api/products', async (req, res) => {
       _id: undefined,
     })).filter((p) => p);
 
+    console.log('📤 Returning', transformed.length, 'products');
     res.status(200).json(transformed);
   } catch (error) {
-    console.error('GET /api/products error:', error.message);
+    console.error('❌ GET /api/products error:', error.message);
+    console.error('Stack:', error.stack);
     res.status(500).json({ error: error.message });
   }
 });
@@ -158,7 +173,19 @@ app.get('/api/products', async (req, res) => {
 app.post('/api/products', async (req, res) => {
   try {
     await connectDB();
-    const product = await Product.create(req.body);
+    const productData = {
+      ...req.body,
+    };
+
+    // Ensure variants is properly formatted
+    if (productData.variants && typeof productData.variants === 'object') {
+      productData.variants = {
+        type: productData.variants.type || '',
+        options: Array.isArray(productData.variants.options) ? productData.variants.options : [],
+      };
+    }
+
+    const product = await Product.create(productData);
     const prodObj = product.toObject();
     res.status(201).json({
       ...prodObj,
@@ -177,11 +204,24 @@ app.put('/api/products', async (req, res) => {
     if (!id) {
       return res.status(400).json({ error: 'ID is required' });
     }
+
+    const updateData = {
+      ...req.body,
+    };
+
+    // Ensure variants is properly formatted
+    if (updateData.variants && typeof updateData.variants === 'object') {
+      updateData.variants = {
+        type: updateData.variants.type || '',
+        options: Array.isArray(updateData.variants.options) ? updateData.variants.options : [],
+      };
+    }
+
     let product;
     try {
-      product = await Product.findByIdAndUpdate(id, req.body, { new: true });
+      product = await Product.findByIdAndUpdate(id, updateData, { new: true });
     } catch (e) {
-      product = await Product.findOneAndUpdate({ id }, req.body, { new: true });
+      product = await Product.findOneAndUpdate({ id }, updateData, { new: true });
     }
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });

@@ -254,26 +254,26 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 </div>
               )}
 
-              {/* Materials & Details Accordion / Pills */}
+              {/* Materials & Details */}
               {product.materials && (
                 <div className="pt-2 border-t border-rose-50">
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1.5">
                     Detalles Artesanales:
                   </h4>
-                  <ul className="text-xs text-stone-600 space-y-1">
+                  <div className="text-xs text-stone-600 space-y-0.5">
                     {product.materials.map((mat, i) => (
-                      <li key={i} className="flex items-center gap-1.5">
-                        <Sparkles size={11} className="text-rose-400 shrink-0" />
-                        <span>{mat}</span>
-                      </li>
+                      <p key={i} className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0" />
+                        {mat}
+                      </p>
                     ))}
                     {product.dimensions && (
-                      <li className="flex items-center gap-1.5">
-                        <Sparkles size={11} className="text-rose-400 shrink-0" />
-                        <span>Dimensiones: {product.dimensions}</span>
-                      </li>
+                      <p className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0" />
+                        Dimensiones: {product.dimensions}
+                      </p>
                     )}
-                  </ul>
+                  </div>
                 </div>
               )}
 

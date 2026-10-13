@@ -55,6 +55,10 @@ export const AdminProductForm: React.FC<AdminProductFormProps> = ({
   const [materialsInput, setMaterialsInput] = useState<string>(initialProduct?.materials?.join(', ') || '');
   const [dimensions, setDimensions] = useState<string>(initialProduct?.dimensions || '');
 
+  // Variants
+  const [variantsType, setVariantsType] = useState<string>(initialProduct?.variants?.type || '');
+  const [variantsInput, setVariantsInput] = useState<string>(initialProduct?.variants?.options?.map((opt) => opt.name).join(', ') || '');
+
   // Images state
   const [images, setImages] = useState<string[]>(() => {
     if (initialProduct?.images && initialProduct.images.length > 0) {
@@ -175,6 +179,16 @@ export const AdminProductForm: React.FC<AdminProductFormProps> = ({
         ? materialsInput.split(',').map((m) => m.trim()).filter(Boolean)
         : ['Materiales artesanales'],
       dimensions: dimensions.trim() || undefined,
+      variants: variantsType && variantsInput
+        ? {
+            type: variantsType,
+            options: variantsInput.split(',').map((opt) => ({
+              id: opt.trim().toLowerCase().replace(/\s+/g, '-'),
+              name: opt.trim(),
+              inStock: true,
+            })),
+          }
+        : undefined,
     };
   };
 
@@ -233,7 +247,16 @@ export const AdminProductForm: React.FC<AdminProductFormProps> = ({
       isNew,
       materials: materialsArray,
       dimensions: dimensions.trim() || undefined,
-      variants: initialProduct?.variants,
+      variants: variantsType && variantsInput
+        ? {
+            type: variantsType,
+            options: variantsInput.split(',').map((opt) => ({
+              id: opt.trim().toLowerCase().replace(/\s+/g, '-'),
+              name: opt.trim(),
+              inStock: true,
+            })),
+          }
+        : undefined,
     };
 
     onSave(productPayload, initialProduct?.id);
@@ -561,6 +584,65 @@ export const AdminProductForm: React.FC<AdminProductFormProps> = ({
                   className="w-full px-3.5 py-2.5 text-sm bg-stone-50/70 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent transition-all"
                 />
               </div>
+            </div>
+
+            {/* Variants Section */}
+            <div className="pt-4 border-t border-rose-50">
+              <h4 className="font-serif text-sm font-bold text-stone-900 mb-4 flex items-center gap-2">
+                <Layers size={16} className="text-rose-500" />
+                Opciones / Variantes (Opcional)
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="variants-type"
+                    className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5"
+                  >
+                    Tipo de Variante
+                  </label>
+                  <input
+                    id="variants-type"
+                    type="text"
+                    value={variantsType}
+                    onChange={(e) => setVariantsType(e.target.value)}
+                    placeholder="ej. Aroma, Tamaño, Color"
+                    className="w-full px-3.5 py-2.5 text-sm bg-stone-50/70 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="variants-options"
+                    className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5"
+                  >
+                    Opciones (separadas por coma)
+                  </label>
+                  <input
+                    id="variants-options"
+                    type="text"
+                    value={variantsInput}
+                    onChange={(e) => setVariantsInput(e.target.value)}
+                    placeholder="Rosa, Lavanda, Vainilla"
+                    className="w-full px-3.5 py-2.5 text-sm bg-stone-50/70 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent transition-all"
+                  />
+                </div>
+              </div>
+
+              {variantsType && variantsInput && (
+                <div className="mt-3 p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
+                  <p className="text-xs font-semibold text-emerald-700 mb-2">
+                    ✓ Vista previa de variantes:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {variantsInput.split(',').map((opt, i) => (
+                      <span key={i} className="text-xs px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-700 font-medium">
+                        {opt.trim()}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
