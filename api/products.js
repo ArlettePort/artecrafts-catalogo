@@ -36,11 +36,22 @@ export default async (req, res) => {
       if (featured) query.isFeatured = true;
       if (status) query.status = status;
 
-      const products = await collection
-        .find(query)
-        .sort({ createdAt: -1 })
-        .toArray();
-      return res.status(200).json(products);
+      let products;
+      try {
+        products = await collection
+          .find(query)
+          .sort({ createdAt: -1 })
+          .toArray();
+      } catch (e) {
+        console.log('Sort failed, trying without sort');
+        products = await collection.find(query).toArray();
+      }
+
+      const transformed = products.map((p) => ({
+        ...p,
+        id: p._id?.toString() || p.id,
+      }));
+      return res.status(200).json(transformed);
     }
 
     if (req.method === 'POST') {
@@ -54,17 +65,43 @@ export default async (req, res) => {
 
     if (req.method === 'PUT') {
       const { id } = req.query;
-      const result = await collection.findOneAndUpdate(
-        { _id: new ObjectId(id) },
-        { $set: { ...req.body, updatedAt: new Date() } },
-        { returnDocument: 'after' }
-      );
+      if (!id) {
+        return res.status(400).json({ error: 'ID is required' });
+      }
+      let result;
+      try {
+        result = await collection.findOneAndUpdate(
+          { _id: new ObjectId(id) },
+          { $set: { ...req.body, updatedAt: new Date() } },
+          { returnDocument: 'after' }
+        );
+      } catch (e) {
+        result = await collection.findOneAndUpdate(
+          { id },
+          { $set: { ...req.body, updatedAt: new Date() } },
+          { returnDocument: 'after' }
+        );
+      }
+      if (!result.value) {
+        return res.status(404).json({ error: 'Product not found' });
+      }
       return res.status(200).json(result.value);
     }
 
     if (req.method === 'DELETE') {
       const { id } = req.query;
-      await collection.deleteOne({ _id: new ObjectId(id) });
+      if (!id) {
+        return res.status(400).json({ error: 'ID is required' });
+      }
+      let result;
+      try {
+        result = await collection.deleteOne({ _id: new ObjectId(id) });
+      } catch (e) {
+        result = await collection.deleteOne({ id });
+      }
+      if (result.deletedCount === 0) {
+        return res.status(404).json({ error: 'Product not found' });
+      }
       return res.status(200).json({ message: 'Product deleted' });
     }
 

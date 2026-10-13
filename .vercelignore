@@ -1,0 +1,10 @@
+.env.local
+.env.example
+server.js
+dev-*
+*.md
+.claude
+.vercel
+node_modules
+dist
+.git

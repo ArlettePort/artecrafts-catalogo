@@ -75,7 +75,7 @@ const productSchema = new mongoose.Schema(
     rating: { type: Number, default: 5 },
     reviewsCount: { type: Number, default: 0 },
     variants: {
-      type: { type: String },
+      type: String,
       options: [productVariantSchema],
     },
   },
@@ -133,14 +133,24 @@ app.get('/api/products', async (req, res) => {
     if (category && category !== 'all') query.category = category;
     if (featured) query.isFeatured = true;
     if (status) query.status = status;
-    const products = await Product.find(query).sort({ createdAt: -1 });
+
+    let products;
+    try {
+      products = await Product.find(query).sort({ createdAt: -1 }).lean();
+    } catch (e) {
+      console.log('Sort by createdAt failed, trying without sort:', e.message);
+      products = await Product.find(query).lean();
+    }
+
     const transformed = products.map((prod) => ({
-      ...prod.toObject(),
+      ...prod,
       id: prod._id.toString(),
-    }));
+      _id: undefined,
+    })).filter((p) => p);
+
     res.status(200).json(transformed);
   } catch (error) {
-    console.error('GET /api/products error:', error);
+    console.error('GET /api/products error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -167,7 +177,15 @@ app.put('/api/products', async (req, res) => {
     if (!id) {
       return res.status(400).json({ error: 'ID is required' });
     }
-    const product = await Product.findByIdAndUpdate(id, req.body, { new: true });
+    let product;
+    try {
+      product = await Product.findByIdAndUpdate(id, req.body, { new: true });
+    } catch (e) {
+      product = await Product.findOneAndUpdate({ id }, req.body, { new: true });
+    }
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
     const prodObj = product.toObject();
     res.status(200).json({
       ...prodObj,
@@ -186,7 +204,15 @@ app.delete('/api/products', async (req, res) => {
     if (!id) {
       return res.status(400).json({ error: 'ID is required' });
     }
-    await Product.findByIdAndDelete(id);
+    let product;
+    try {
+      product = await Product.findByIdAndDelete(id);
+    } catch (e) {
+      product = await Product.findOneAndDelete({ id });
+    }
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
     res.status(200).json({ message: 'Product deleted' });
   } catch (error) {
     console.error('DELETE /api/products error:', error);
@@ -198,11 +224,18 @@ app.delete('/api/products', async (req, res) => {
 app.get('/api/categories', async (req, res) => {
   try {
     await connectDB();
-    const categories = await Category.find({ status: 'active' }).sort({ createdAt: 1 });
+    let categories;
+    try {
+      categories = await Category.find({ status: 'active' }).sort({ createdAt: 1 }).lean();
+    } catch (e) {
+      console.log('Sort by createdAt failed, trying without sort:', e.message);
+      categories = await Category.find({ status: 'active' }).lean();
+    }
     const transformed = categories.map((cat) => ({
-      ...cat.toObject(),
+      ...cat,
       id: cat._id.toString(),
-    }));
+      _id: undefined,
+    })).filter((c) => c);
     res.status(200).json(transformed);
   } catch (error) {
     console.error('GET /api/categories error:', error);
@@ -232,7 +265,15 @@ app.put('/api/categories', async (req, res) => {
     if (!id) {
       return res.status(400).json({ error: 'ID is required' });
     }
-    const category = await Category.findByIdAndUpdate(id, req.body, { new: true });
+    let category;
+    try {
+      category = await Category.findByIdAndUpdate(id, req.body, { new: true });
+    } catch (e) {
+      category = await Category.findOneAndUpdate({ id }, req.body, { new: true });
+    }
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
     const catObj = category.toObject();
     res.status(200).json({
       ...catObj,
@@ -251,7 +292,15 @@ app.delete('/api/categories', async (req, res) => {
     if (!id) {
       return res.status(400).json({ error: 'ID is required' });
     }
-    await Category.findByIdAndDelete(id);
+    let category;
+    try {
+      category = await Category.findByIdAndDelete(id);
+    } catch (e) {
+      category = await Category.findOneAndDelete({ id });
+    }
+    if (!category) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
     res.status(200).json({ message: 'Category deleted' });
   } catch (error) {
     console.error('DELETE /api/categories error:', error);
@@ -263,11 +312,18 @@ app.delete('/api/categories', async (req, res) => {
 app.get('/api/orders', async (req, res) => {
   try {
     await connectDB();
-    const orders = await Order.find().sort({ createdAt: -1 });
+    let orders;
+    try {
+      orders = await Order.find().sort({ createdAt: -1 }).lean();
+    } catch (e) {
+      console.log('Sort by createdAt failed, trying without sort:', e.message);
+      orders = await Order.find().lean();
+    }
     const transformed = orders.map((ord) => ({
-      ...ord.toObject(),
+      ...ord,
       id: ord._id.toString(),
-    }));
+      _id: undefined,
+    })).filter((o) => o);
     res.status(200).json(transformed);
   } catch (error) {
     console.error('GET /api/orders error:', error);
@@ -301,7 +357,15 @@ app.put('/api/orders', async (req, res) => {
     if (!id) {
       return res.status(400).json({ error: 'ID is required' });
     }
-    const order = await Order.findByIdAndUpdate(id, req.body, { new: true });
+    let order;
+    try {
+      order = await Order.findByIdAndUpdate(id, req.body, { new: true });
+    } catch (e) {
+      order = await Order.findOneAndUpdate({ id }, req.body, { new: true });
+    }
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
     const ordObj = order.toObject();
     res.status(200).json({
       ...ordObj,
@@ -320,7 +384,15 @@ app.delete('/api/orders', async (req, res) => {
     if (!id) {
       return res.status(400).json({ error: 'ID is required' });
     }
-    await Order.findByIdAndDelete(id);
+    let order;
+    try {
+      order = await Order.findByIdAndDelete(id);
+    } catch (e) {
+      order = await Order.findOneAndDelete({ id });
+    }
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
     res.status(200).json({ message: 'Order deleted' });
   } catch (error) {
     console.error('DELETE /api/orders error:', error);
