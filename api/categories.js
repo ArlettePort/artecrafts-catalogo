@@ -1,5 +1,9 @@
 import { MongoClient, ObjectId } from 'mongodb';
 
+function withoutReserved({ _id, id, createdAt, ...fields }) {
+  return fields;
+}
+
 export default async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -67,20 +71,20 @@ export default async (req, res) => {
       try {
         result = await collection.findOneAndUpdate(
           { _id: new ObjectId(id) },
-          { $set: { ...req.body, updatedAt: new Date() } },
+          { $set: { ...withoutReserved(req.body), updatedAt: new Date() } },
           { returnDocument: 'after' }
         );
       } catch (e) {
         result = await collection.findOneAndUpdate(
           { id },
-          { $set: { ...req.body, updatedAt: new Date() } },
+          { $set: { ...withoutReserved(req.body), updatedAt: new Date() } },
           { returnDocument: 'after' }
         );
       }
-      if (!result.value) {
+      if (!result) {
         return res.status(404).json({ error: 'Category not found' });
       }
-      return res.status(200).json(result.value);
+      return res.status(200).json(result);
     }
 
     if (req.method === 'DELETE') {

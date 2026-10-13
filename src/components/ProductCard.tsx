@@ -4,6 +4,7 @@ import { Product } from '../types';
 
 interface ProductCardProps {
   product: Product;
+  categoryName?: string;
   isFavorite: boolean;
   onToggleFavorite: (product: Product) => void;
   onSelectProduct: (product: Product) => void;
@@ -12,6 +13,7 @@ interface ProductCardProps {
 
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
+  categoryName,
   isFavorite,
   onToggleFavorite,
   onSelectProduct,
@@ -34,7 +36,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           src={displayImage}
           alt={product.name}
           loading="lazy"
-          className={`w-full h-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105 ${
+          className={`w-full h-full object-contain object-center transition-transform duration-500 ease-out group-hover:scale-105 ${
             isOutOfStock ? 'grayscale-40 opacity-70' : ''
           }`}
         />
@@ -112,7 +114,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           {/* Category & Rating */}
           <div className="flex items-center justify-between text-[11px] text-stone-400 mb-1">
             <span className="capitalize font-medium text-rose-600/80">
-              {product.category}
+              {categoryName || (/^[a-f0-9]{24}$/i.test(product.category) ? '' : product.category)}
             </span>
             <div className="flex items-center gap-0.5 text-amber-500">
               <Star size={11} className="fill-amber-400 stroke-amber-400" />

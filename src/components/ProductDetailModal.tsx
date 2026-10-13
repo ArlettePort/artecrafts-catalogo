@@ -16,6 +16,7 @@ import { Product } from '../types';
 
 interface ProductDetailModalProps {
   product: Product | null;
+  categoryName?: string;
   isOpen: boolean;
   onClose: () => void;
   isFavorite: boolean;
@@ -27,6 +28,7 @@ interface ProductDetailModalProps {
 
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   product,
+  categoryName,
   isOpen,
   onClose,
   isFavorite,
@@ -71,9 +73,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         {/* Header bar with close & favorite */}
         <div className="sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 py-3.5 bg-white/95 backdrop-blur-sm border-b border-rose-100/70">
           <div className="flex items-center gap-2">
-            {product.category && product.category !== product.id && (
+            {(categoryName || (product.category && !/^[a-f0-9]{24}$/i.test(product.category))) && (
               <span className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-100">
-                {product.category}
+                {categoryName || product.category}
               </span>
             )}
             {product.isNew && (
@@ -122,7 +124,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 <img
                   src={product.images[selectedImageIndex] || product.images[0]}
                   alt={product.name}
-                  className="w-full h-full object-cover object-center transition-all duration-300"
+                  className="w-full h-full object-contain object-center transition-all duration-300"
                 />
                 {isOutOfStock && (
                   <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center">

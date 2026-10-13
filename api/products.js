@@ -1,5 +1,9 @@
 import { MongoClient, ObjectId } from 'mongodb';
 
+function withoutReserved({ _id, id, createdAt, ...fields }) {
+  return fields;
+}
+
 export default async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -80,7 +84,7 @@ export default async (req, res) => {
       }
 
       const updateData = {
-        ...req.body,
+        ...withoutReserved(req.body),
         updatedAt: new Date(),
       };
 
@@ -106,10 +110,10 @@ export default async (req, res) => {
           { returnDocument: 'after' }
         );
       }
-      if (!result.value) {
+      if (!result) {
         return res.status(404).json({ error: 'Product not found' });
       }
-      return res.status(200).json(result.value);
+      return res.status(200).json(result);
     }
 
     if (req.method === 'DELETE') {

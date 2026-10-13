@@ -805,7 +805,7 @@ export default function App() {
                             <ProductCard
                               key={product.id}
                               product={product}
-                              isFavorite={favorites.some((f) => f.id === product.id)}
+                              categoryName={categories.find((c) => c.id === product.category)?.name} isFavorite={favorites.some((f) => f.id === product.id)}
                               onToggleFavorite={handleToggleFavorite}
                               onSelectProduct={(p) => setSelectedProduct(p)}
                               onQuickAddToCart={(p) => handleAddToCart(p, 1)}
@@ -833,7 +833,7 @@ export default function App() {
                             <ProductCard
                               key={product.id}
                               product={product}
-                              isFavorite={favorites.some((f) => f.id === product.id)}
+                              categoryName={categories.find((c) => c.id === product.category)?.name} isFavorite={favorites.some((f) => f.id === product.id)}
                               onToggleFavorite={handleToggleFavorite}
                               onSelectProduct={(p) => setSelectedProduct(p)}
                               onQuickAddToCart={(p) => handleAddToCart(p, 1)}
@@ -890,7 +890,7 @@ export default function App() {
                     <ProductCard
                       key={product.id}
                       product={product}
-                      isFavorite={favorites.some((f) => f.id === product.id)}
+                      categoryName={categories.find((c) => c.id === product.category)?.name} isFavorite={favorites.some((f) => f.id === product.id)}
                       onToggleFavorite={handleToggleFavorite}
                       onSelectProduct={(p) => setSelectedProduct(p)}
                       onQuickAddToCart={(p) => handleAddToCart(p, 1)}
@@ -974,6 +974,7 @@ export default function App() {
       {/* Product Detail Modal */}
       <ProductDetailModal
         product={selectedProduct}
+        categoryName={categories.find((c) => c.id === selectedProduct?.category)?.name}
         isOpen={!!selectedProduct}
         onClose={() => setSelectedProduct(null)}
         isFavorite={
